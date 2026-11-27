@@ -1207,6 +1207,35 @@ describe('promql operations', () => {
       ],
     },
     {
+      expr: 'foo offset 5m @ 100 offset 1m',
+      expectedValueType: ValueType.vector,
+      expectedDiag: [
+        {
+          from: 0,
+          to: 29,
+          message: 'offset may not be set multiple times',
+          severity: 'error',
+        },
+      ],
+    },
+    {
+      expr: 'foo[5m:1m] @ 100 @ start()',
+      expectedValueType: ValueType.matrix,
+      expectedDiag: [
+        {
+          from: 0,
+          to: 26,
+          message: '@ <timestamp> may not be set multiple times',
+          severity: 'error',
+        },
+      ],
+    },
+    {
+      expr: 'foo @ 100 offset 5m',
+      expectedValueType: ValueType.vector,
+      expectedDiag: [],
+    },
+    {
       expr: '{"__name__"="foo", __name__="bar"}',
       expectedValueType: ValueType.vector,
       expectedDiag: [

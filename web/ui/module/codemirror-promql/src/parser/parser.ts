@@ -176,6 +176,9 @@ export class Parser {
         // `checkAST` only recurses for explicit node kinds; there is no default
         // branch that walks all children, so we must visit the vector operand.
         this.checkAST(node.getChild('Expr'));
+        if (this.hasModifier(node.getChild('Expr'), OffsetExpr)) {
+          this.addDiagnostic(node, 'offset may not be set multiple times');
+        }
         if (!node.getChild(OffsetDurationExpr)) {
           // Always emit this message (do not gate on `OffsetExpr.to === topNode.to`:
           // the query box often has trailing space, so that check never matched in the UI).
@@ -196,6 +199,9 @@ export class Parser {
         if (exprValue !== ValueType.vector && exprValue !== ValueType.matrix) {
           this.addDiagnostic(node, `@ modifier must be preceded by an instant selector vector or range vector selector or a subquery`);
         }
+        if (this.hasModifier(node.getChild('Expr'), StepInvariantExpr)) {
+          this.addDiagnostic(node, '@ <timestamp> may not be set multiple times');
+        }
         // if you are looking at the Prometheus code, you will likely find that some checks are missing here.
         // Specially the one checking if the timestamp after the `@` is ok: https://github.com/prometheus/prometheus/blob/ad5ed416ba635834370bfa06139258b31f8c33f9/promql/parser/parse.go#L722-L725
         // Since Javascript is managing the number as a float64 and so on 53 bits, we cannot validate that the maxInt64 number is a valid value.
@@ -209,6 +215,20 @@ export class Parser {
     }
 
     return getType(node);
+  }
+
+  // hasModifier tells whether the operand of an offset or @ modifier already has the given modifier.
+  // The operand of one modifier can be the other one, e.g. in foo @ 100 offset 5m.
+  private hasModifier(operand: SyntaxNode | null, modifier: number): boolean {
+    for (let n = operand; n; n = n.getChild('Expr')) {
+      if (n.type.id === modifier) {
+        return true;
+      }
+      if (n.type.id !== OffsetExpr && n.type.id !== StepInvariantExpr) {
+        return false;
+      }
+    }
+    return false;
   }
 
   private checkAggregationExpr(node: SyntaxNode): void {
